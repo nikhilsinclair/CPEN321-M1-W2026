@@ -1,9 +1,9 @@
-import { createHighlightLoader } from './highlights';
+import { createScoreLoader } from './scores';
 import express, { type Express } from 'express';
 
 export function createApp(): Express {
   const app = express();
-  const loadHighlights = createHighlightLoader();
+  const loadScores = createScoreLoader();
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok' });
@@ -31,11 +31,11 @@ export function createApp(): Express {
     res.json({ firstName: 'Nikhil', lastName: 'Sinclair' });
   });
 
-  app.get('/highlights', async (_req, res) => {
+  app.get('/scores', async (_req, res) => {
     try {
-      res.json({ highlights: await loadHighlights() });
+      res.json(await loadScores());
     } catch {
-      res.status(503).json({ error: 'Highlights are unavailable right now' });
+      res.status(503).json({ error: 'Scores are unavailable right now' });
     }
   });
 

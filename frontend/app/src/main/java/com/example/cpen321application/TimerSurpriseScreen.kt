@@ -116,7 +116,6 @@ private fun PenaltyGame(onNewTimer: () -> Unit) {
     var keeperX by rememberSaveable { mutableStateOf(0.5f) }
     var keeperY by rememberSaveable { mutableStateOf(0.6f) }
     var result by rememberSaveable { mutableStateOf("") }
-    var watchingHighlights by rememberSaveable { mutableStateOf(false) }
     val flight = remember { Animatable(0f) }
 
     LaunchedEffect(shooting) {
@@ -147,9 +146,6 @@ private fun PenaltyGame(onNewTimer: () -> Unit) {
             else -> "Tap inside the goal to aim and shoot."
         })
         val progress = if (shooting) flight.value else 0f
-        if (watchingHighlights) {
-            HighlightsCard()
-        } else {
             Canvas(
                 Modifier.fillMaxWidth().aspectRatio(0.95f)
                     .semantics { contentDescription = "Soccer penalty pitch. Tap inside the white goal to shoot." }
@@ -200,26 +196,14 @@ private fun PenaltyGame(onNewTimer: () -> Unit) {
                 drawCircle(Color.Black.copy(alpha = 0.2f), radius, ball + Offset(3f, 6f))
                 drawCircle(Color.White, radius, ball)
                 drawCircle(Color(0xff182632), radius * 0.4f, ball)
-                if (shooting && result.startsWith("GOAL")) {
-                    repeat(28) { i ->
-                        val cx = ((i * 37 % 101) / 100f) * w
-                        val cy = ((i * 19 % 53) / 100f) * h
-                        drawRect(if (i % 2 == 0) Color(0xffffd166) else Color(0xff70e1f5), Offset(cx, cy), Size(5.dp.toPx(), 8.dp.toPx()))
-                    }
-                }
+
             }
-        }
-        if (!watchingHighlights && result.isNotEmpty()) Text(result, style = MaterialTheme.typography.titleMedium)
+        if (result.isNotEmpty()) Text(result, style = MaterialTheme.typography.titleMedium)
         if (shots == 5) {
             Button(enabled = !shooting, onClick = {
-                watchingHighlights = false
                 shots = 0; goals = 0; result = ""; keeperX = 0.5f; keeperY = 0.6f
             }) { Text("Play again") }
-            if (!watchingHighlights) {
-                Button(enabled = !shooting, onClick = { watchingHighlights = true }) {
-                    Text("Watch real highlights")
-                }
-            }
+            if (!shooting) WeeklyScoresPanel()
         }
         OutlinedButton(enabled = !shooting, onClick = onNewTimer) { Text("Set another timer") }
     }

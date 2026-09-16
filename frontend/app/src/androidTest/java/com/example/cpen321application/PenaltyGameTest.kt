@@ -25,9 +25,7 @@ class PenaltyGameTest {
                     compose.onAllNodesWithText("Here comes the shot…").fetchSemanticsNodes().isEmpty()
             }
         }
-        compose.onNodeWithText("Watch real highlights").performScrollTo().performClick()
-        pitch.assertDoesNotExist()
-        compose.onNodeWithText("Watch real highlights").assertExists()
+        compose.onNodeWithText("This week’s scores").assertExists()
         compose.onNodeWithText("Play again").performScrollTo().performClick()
         pitch.assertExists()
         compose.onNodeWithText("Goals: 0  •  Shots: 0 / 5").assertExists()
