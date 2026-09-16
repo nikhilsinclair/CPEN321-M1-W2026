@@ -2,9 +2,9 @@
 sdk.dir=/path/to/Android/sdk
 
 # Backend base URL baked into the APK at build time.
-API_BASE_URL=http://10.0.2.2:3000
+API_BASE_URL=https://35.222.61.184
 
-# Google OAuth client ID.
+# Google OAuth Web application client ID (not the Android client ID or a client secret).
 GOOGLE_CLIENT_ID=
 
 # Other API keys, secrets, and configurations

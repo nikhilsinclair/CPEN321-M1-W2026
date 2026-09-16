@@ -30,12 +30,11 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Baked in at build time from local.properties — never hard-code URLs or
-        // OAuth IDs in source. Emulator reaches the host via 10.0.2.2, not localhost.
+        // Override the deployed HTTPS backend and Web client ID in local.properties.
         buildConfigField(
             "String",
             "API_BASE_URL",
-            "\"${localProperty("API_BASE_URL", "http://10.0.2.2:3000")}\""
+            "\"${localProperty("API_BASE_URL", "https://35.222.61.184")}\""
         )
         buildConfigField(
             "String",
@@ -71,6 +70,9 @@ kotlin {
 }
 
 dependencies {
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.google.id)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
