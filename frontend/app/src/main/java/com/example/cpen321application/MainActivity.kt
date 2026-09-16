@@ -80,17 +80,10 @@ fun M1App(modifier: Modifier = Modifier) {
                 Text("Back to home")
             }
             Text(selectedFeature.orEmpty(), style = MaterialTheme.typography.headlineMedium)
-            if (selectedFeature == "Login + Server Info") {
-                GoogleSignInScreen()
-            } else {
-                Text(
-                    when (selectedFeature) {
-                        "Live Pixel Art" ->
-                            "Coming next: watch a 16 × 16 pixel image appear live."
-                        else ->
-                            "Coming next: set a timer and discover a surprise when it finishes."
-                    }
-                )
+            when (selectedFeature) {
+                "Login + Server Info" -> GoogleSignInScreen()
+                "Live Pixel Art" -> PixelArtScreen()
+                else -> Text("Coming next: set a timer and discover a surprise when it finishes.")
             }
         }
     }
