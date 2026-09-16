@@ -1,24 +1,30 @@
 package com.example.cpen321application
 
-import android.content.ActivityNotFoundException
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import android.annotation.SuppressLint
+import android.webkit.*
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.URL
@@ -51,41 +57,96 @@ internal suspend fun fetchHighlight(): MatchHighlight = withContext(Dispatchers.
 
 @Composable
 fun HighlightsCard() {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var loading by remember { mutableStateOf(false) }
+    var request by remember { mutableStateOf(0) }
+    var loading by remember { mutableStateOf(true) }
     var highlight by remember { mutableStateOf<MatchHighlight?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(request) {
+        loading = true
+        highlight = null
+        error = null
+        try {
+            highlight = fetchHighlight()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            error = "Highlights are unavailable right now. Try again or play another shootout."
+        } finally {
+            loading = false
+        }
+    }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Watch the pros", style = MaterialTheme.typography.titleMedium)
-        Text("Finished your penalties? Discover a real match highlight.")
+        Text("Watch real highlights", style = MaterialTheme.typography.titleMedium)
+        if (loading) Text("Loading a match highlight…")
         highlight?.let { match ->
             Text(match.title, style = MaterialTheme.typography.titleSmall)
             Text(listOf(match.competition, match.date).filter { it.isNotBlank() }.joinToString(" • "))
-            Button(onClick = {
-                try {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(match.videoUrl)))
-                } catch (_: ActivityNotFoundException) {
-                    error = "No browser is available to open the video."
-                }
-            }) { Text("Watch highlight") }
-            Text("Opens in your browser. Videos by ScoreBat; availability and ads may vary.", style = MaterialTheme.typography.bodySmall)
+            key(match.videoUrl, request) { HighlightPlayer(match.videoUrl) }
+            Text("Videos by ScoreBat. Free highlights may include ads and watermarks.", style = MaterialTheme.typography.bodySmall)
         }
         error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Button(enabled = !loading, onClick = {
-            scope.launch {
-                loading = true
-                error = null
-                try {
-                    highlight = fetchHighlight()
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (_: Exception) {
-                    error = "Highlights are unavailable right now. You can still play again."
-                } finally {
-                    loading = false
-                }
-            }
-        }) { Text(if (loading) "Finding highlights…" else if (highlight != null) "Find another highlight" else "Find a highlight") }
+        Button(enabled = !loading, onClick = { request++ }) {
+            Text(if (error != null) "Try again" else "Watch another highlight")
+        }
     }
+}
+
+@SuppressLint("SetJavaScriptEnabled")
+@Composable
+private fun HighlightPlayer(url: String) {
+    val owner = LocalLifecycleOwner.current
+    var player by remember { mutableStateOf<WebView?>(null) }
+    var failed by remember { mutableStateOf(false) }
+    DisposableEffect(owner, player) {
+        val view = player
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) view?.onResume()
+            if (event == Lifecycle.Event.ON_PAUSE) view?.onPause()
+        }
+        owner.lifecycle.addObserver(observer)
+        onDispose { owner.lifecycle.removeObserver(observer) }
+    }
+    if (failed) Text("This video could not load. Try another highlight.", color = MaterialTheme.colorScheme.error)
+    AndroidView(
+        modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
+        factory = { context ->
+            WebView(context).apply {
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                settings.allowFileAccess = false
+                settings.allowContentAccess = false
+                settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                webChromeClient = WebChromeClient()
+                webViewClient = object : WebViewClient() {
+                    override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                        // Keep playback in the player and reject non-HTTPS navigation.
+                        return request.url.scheme != "https"
+                    }
+                    override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                        if (request.isForMainFrame) failed = true
+                    }
+                }
+                player = this
+                val source = android.text.TextUtils.htmlEncode(url)
+                loadDataWithBaseURL(
+                    "${BuildConfig.API_BASE_URL.trimEnd('/')}/",
+                    """<!DOCTYPE html><html><head>
+                        <meta name="viewport" content="width=device-width,initial-scale=1">
+                        <style>html,body{margin:0;width:100%;height:100%;background:#000}
+                        iframe{position:fixed;inset:0;width:100%;height:100%;border:0}</style>
+                        </head><body><iframe src="$source" title="Football highlight"
+                        allow="autoplay; fullscreen; encrypted-media" allowfullscreen
+                        referrerpolicy="strict-origin-when-cross-origin"></iframe></body></html>""".trimIndent(),
+                    "text/html", "UTF-8", null
+                )
+            }
+        },
+        onRelease = { view ->
+            view.stopLoading()
+            view.onPause()
+            view.removeAllViews()
+            view.destroy()
+            player = null
+        }
+    )
 }

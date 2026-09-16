@@ -116,6 +116,7 @@ private fun PenaltyGame(onNewTimer: () -> Unit) {
     var keeperX by rememberSaveable { mutableStateOf(0.5f) }
     var keeperY by rememberSaveable { mutableStateOf(0.6f) }
     var result by rememberSaveable { mutableStateOf("") }
+    var watchingHighlights by rememberSaveable { mutableStateOf(false) }
     val flight = remember { Animatable(0f) }
 
     LaunchedEffect(shooting) {
@@ -146,70 +147,79 @@ private fun PenaltyGame(onNewTimer: () -> Unit) {
             else -> "Tap inside the goal to aim and shoot."
         })
         val progress = if (shooting) flight.value else 0f
-        Canvas(
-            Modifier.fillMaxWidth().aspectRatio(0.95f)
-                .semantics { contentDescription = "Soccer penalty pitch. Tap inside the white goal to shoot." }
-                .pointerInput(shooting, shots) {
-                    detectTapGestures { tap ->
-                        val x = (tap.x / size.width - 0.08f) / 0.84f
-                        val y = (tap.y / size.height - 0.12f) / 0.38f
-                        if (!shooting && shots < 5 && x in 0f..1f && y in 0f..1f) {
-                            targetX = x
-                            targetY = y
-                            keeperX = Random.nextFloat() * 0.8f + 0.1f
-                            keeperY = Random.nextFloat() * 0.65f + 0.2f
-                            result = ""
-                            shooting = true
+        if (watchingHighlights) {
+            HighlightsCard()
+        } else {
+            Canvas(
+                Modifier.fillMaxWidth().aspectRatio(0.95f)
+                    .semantics { contentDescription = "Soccer penalty pitch. Tap inside the white goal to shoot." }
+                    .pointerInput(shooting, shots) {
+                        detectTapGestures { tap ->
+                            val x = (tap.x / size.width - 0.08f) / 0.84f
+                            val y = (tap.y / size.height - 0.12f) / 0.38f
+                            if (!shooting && shots < 5 && x in 0f..1f && y in 0f..1f) {
+                                targetX = x
+                                targetY = y
+                                keeperX = Random.nextFloat() * 0.8f + 0.1f
+                                keeperY = Random.nextFloat() * 0.65f + 0.2f
+                                result = ""
+                                shooting = true
+                            }
                         }
                     }
+            ) {
+                val w = size.width
+                val h = size.height
+                drawRect(Color(0xff176b43))
+                repeat(8) { stripe ->
+                    if (stripe % 2 == 0) drawRect(Color(0xff207c4e), Offset(0f, stripe * h / 8), Size(w, h / 8))
                 }
-        ) {
-            val w = size.width
-            val h = size.height
-            drawRect(Color(0xff176b43))
-            repeat(8) { stripe ->
-                if (stripe % 2 == 0) drawRect(Color(0xff207c4e), Offset(0f, stripe * h / 8), Size(w, h / 8))
-            }
-            val left = w * 0.08f
-            val top = h * 0.12f
-            val goalW = w * 0.84f
-            val goalH = h * 0.38f
-            drawRect(Color(0xff123d35), Offset(left, top), Size(goalW, goalH))
-            for (i in 0..12) drawLine(Color(0xff547b72), Offset(left + goalW * i / 12, top), Offset(left + goalW * i / 12, top + goalH), 1.dp.toPx())
-            for (i in 0..5) drawLine(Color(0xff547b72), Offset(left, top + goalH * i / 5), Offset(left + goalW, top + goalH * i / 5), 1.dp.toPx())
-            drawRect(Color.White, Offset(left, top), Size(goalW, goalH), style = Stroke(4.dp.toPx()))
-            drawRect(Color.White.copy(alpha = 0.5f), Offset(w * 0.04f, h * 0.5f), Size(w * 0.92f, h * 0.42f), style = Stroke(2.dp.toPx()))
-            val dive = (progress * 1.2f).coerceAtMost(1f)
-            val keeper = Offset(left + goalW * (0.5f + (keeperX - 0.5f) * dive), top + goalH * (0.65f + (keeperY - 0.65f) * dive))
-            val body = w * 0.045f
-            drawLine(Color(0xffffc857), keeper + Offset(0f, -body), keeper + Offset(0f, body), body)
-            drawCircle(Color(0xfff1c6a5), body * 0.7f, keeper + Offset(0f, -body * 1.9f))
-            drawLine(Color(0xffffc857), keeper + Offset(-body * 2.3f, -body), keeper + Offset(body * 2.3f, -body), body * 0.55f)
-            drawCircle(Color.White, body * 0.45f, keeper + Offset(-body * 2.3f, -body))
-            drawCircle(Color.White, body * 0.45f, keeper + Offset(body * 2.3f, -body))
-            drawLine(Color(0xff172d4b), keeper, keeper + Offset(-body, body * 2.5f), body * 0.6f)
-            drawLine(Color(0xff172d4b), keeper, keeper + Offset(body, body * 2.5f), body * 0.6f)
-            val start = Offset(w * 0.5f, h * 0.82f)
-            val end = Offset(left + goalW * targetX, top + goalH * targetY)
-            val ball = start + (end - start) * progress
-            val radius = w * (0.038f - progress * 0.016f)
-            drawCircle(Color.Black.copy(alpha = 0.2f), radius, ball + Offset(3f, 6f))
-            drawCircle(Color.White, radius, ball)
-            drawCircle(Color(0xff182632), radius * 0.4f, ball)
-            if (shooting && result.startsWith("GOAL")) {
-                repeat(28) { i ->
-                    val cx = ((i * 37 % 101) / 100f) * w
-                    val cy = ((i * 19 % 53) / 100f) * h
-                    drawRect(if (i % 2 == 0) Color(0xffffd166) else Color(0xff70e1f5), Offset(cx, cy), Size(5.dp.toPx(), 8.dp.toPx()))
+                val left = w * 0.08f
+                val top = h * 0.12f
+                val goalW = w * 0.84f
+                val goalH = h * 0.38f
+                drawRect(Color(0xff123d35), Offset(left, top), Size(goalW, goalH))
+                for (i in 0..12) drawLine(Color(0xff547b72), Offset(left + goalW * i / 12, top), Offset(left + goalW * i / 12, top + goalH), 1.dp.toPx())
+                for (i in 0..5) drawLine(Color(0xff547b72), Offset(left, top + goalH * i / 5), Offset(left + goalW, top + goalH * i / 5), 1.dp.toPx())
+                drawRect(Color.White, Offset(left, top), Size(goalW, goalH), style = Stroke(4.dp.toPx()))
+                drawRect(Color.White.copy(alpha = 0.5f), Offset(w * 0.04f, h * 0.5f), Size(w * 0.92f, h * 0.42f), style = Stroke(2.dp.toPx()))
+                val dive = (progress * 1.2f).coerceAtMost(1f)
+                val keeper = Offset(left + goalW * (0.5f + (keeperX - 0.5f) * dive), top + goalH * (0.65f + (keeperY - 0.65f) * dive))
+                val body = w * 0.045f
+                drawLine(Color(0xffffc857), keeper + Offset(0f, -body), keeper + Offset(0f, body), body)
+                drawCircle(Color(0xfff1c6a5), body * 0.7f, keeper + Offset(0f, -body * 1.9f))
+                drawLine(Color(0xffffc857), keeper + Offset(-body * 2.3f, -body), keeper + Offset(body * 2.3f, -body), body * 0.55f)
+                drawCircle(Color.White, body * 0.45f, keeper + Offset(-body * 2.3f, -body))
+                drawCircle(Color.White, body * 0.45f, keeper + Offset(body * 2.3f, -body))
+                drawLine(Color(0xff172d4b), keeper, keeper + Offset(-body, body * 2.5f), body * 0.6f)
+                drawLine(Color(0xff172d4b), keeper, keeper + Offset(body, body * 2.5f), body * 0.6f)
+                val start = Offset(w * 0.5f, h * 0.82f)
+                val end = Offset(left + goalW * targetX, top + goalH * targetY)
+                val ball = start + (end - start) * progress
+                val radius = w * (0.038f - progress * 0.016f)
+                drawCircle(Color.Black.copy(alpha = 0.2f), radius, ball + Offset(3f, 6f))
+                drawCircle(Color.White, radius, ball)
+                drawCircle(Color(0xff182632), radius * 0.4f, ball)
+                if (shooting && result.startsWith("GOAL")) {
+                    repeat(28) { i ->
+                        val cx = ((i * 37 % 101) / 100f) * w
+                        val cy = ((i * 19 % 53) / 100f) * h
+                        drawRect(if (i % 2 == 0) Color(0xffffd166) else Color(0xff70e1f5), Offset(cx, cy), Size(5.dp.toPx(), 8.dp.toPx()))
+                    }
                 }
             }
         }
-        if (result.isNotEmpty()) Text(result, style = MaterialTheme.typography.titleMedium)
+        if (!watchingHighlights && result.isNotEmpty()) Text(result, style = MaterialTheme.typography.titleMedium)
         if (shots == 5) {
-            if (!shooting) HighlightsCard()
             Button(enabled = !shooting, onClick = {
+                watchingHighlights = false
                 shots = 0; goals = 0; result = ""; keeperX = 0.5f; keeperY = 0.6f
             }) { Text("Play again") }
+            if (!watchingHighlights) {
+                Button(enabled = !shooting, onClick = { watchingHighlights = true }) {
+                    Text("Watch real highlights")
+                }
+            }
         }
         OutlinedButton(enabled = !shooting, onClick = onNewTimer) { Text("Set another timer") }
     }
