@@ -1,7 +1,9 @@
+import { createHighlightLoader } from './highlights';
 import express, { type Express } from 'express';
 
 export function createApp(): Express {
   const app = express();
+  const loadHighlights = createHighlightLoader();
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok' });
@@ -27,6 +29,14 @@ export function createApp(): Express {
 
   app.get('/name', (_req, res) => {
     res.json({ firstName: 'Nikhil', lastName: 'Sinclair' });
+  });
+
+  app.get('/highlights', async (_req, res) => {
+    try {
+      res.json({ highlights: await loadHighlights() });
+    } catch {
+      res.status(503).json({ error: 'Highlights are unavailable right now' });
+    }
   });
 
   app.use((_req, res) => {

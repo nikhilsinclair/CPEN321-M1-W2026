@@ -83,7 +83,7 @@ fun M1App(modifier: Modifier = Modifier) {
             when (selectedFeature) {
                 "Login + Server Info" -> GoogleSignInScreen()
                 "Live Pixel Art" -> PixelArtScreen()
-                else -> Text("Coming next: set a timer and discover a surprise when it finishes.")
+                else -> TimerSurpriseScreen()
             }
         }
     }
