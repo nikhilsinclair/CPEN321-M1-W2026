@@ -203,8 +203,8 @@ private fun PenaltyGame(onNewTimer: () -> Unit) {
             Button(enabled = !shooting, onClick = {
                 shots = 0; goals = 0; result = ""; keeperX = 0.5f; keeperY = 0.6f
             }) { Text("Play again") }
-            if (!shooting) WeeklyScoresPanel()
         }
         OutlinedButton(enabled = !shooting, onClick = onNewTimer) { Text("Set another timer") }
+        WeeklyScoresPanel()
     }
 }

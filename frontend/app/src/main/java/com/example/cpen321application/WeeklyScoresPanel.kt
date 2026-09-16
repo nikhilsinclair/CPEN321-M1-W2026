@@ -54,7 +54,7 @@ fun WeeklyScoresPanel() {
     }
     val format = remember { DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault()).withZone(ZoneId.systemDefault()) }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("This week’s scores", style = MaterialTheme.typography.titleLarge)
+        Text("This week’s real soccer scores", style = MaterialTheme.typography.titleLarge)
         Text("Finished matches from the last 7 days across supported competitions. Results may be delayed.", style = MaterialTheme.typography.bodySmall)
         when {
             loading -> Text("Loading recent scores…")
