@@ -22,6 +22,83 @@ The Android app trusts the server's self-signed public certificate in `frontend/
 
 Use the checked-in Gradle wrapper and dependency versions. Gradle's daemon/compiler are configured for Java 17 and may download that toolchain on first build. Do not upgrade dependencies simply because Android Studio suggests it.
 
+## If the submitted APK does not work
+
+Use this source-build fallback on a Pixel 9 API 36 emulator. Start with the [requirements](#requirements-and-pinned-toolchain) above. A source build still needs working internet, OAuth configuration and an available HTTPS backend; rebuilding alone does not resolve a service outage.
+
+### 1. Create the frontend configuration
+
+In a terminal, clone the repository and enter it (or enter an existing clone):
+
+```bash
+git clone https://github.com/nikhilsinclair/CPEN321-M1-W2026.git
+cd CPEN321-M1-W2026
+```
+
+Copy `frontend/local.properties.example` to `frontend/local.properties` **only if the latter does not already exist**, then edit it to contain:
+
+```properties
+sdk.dir=/absolute/path/to/Android/sdk
+API_BASE_URL=https://35.222.61.184
+GOOGLE_CLIENT_ID=1045852430010-qsleolr98be0ncddlf1jsfnh3i42og8h.apps.googleusercontent.com
+```
+
+Find your actual SDK path in Android Studio's Android SDK settings. On macOS it is usually `/Users/<username>/Library/Android/sdk`; replace the placeholder with your own path. Keep each property on one line. This file is deliberately ignored by Git and must be created on every fresh machine. Changes to these values require rebuilding the app.
+
+**When using the deployed backend above, no local `backend/.env` or locally running Node server is needed.** Check its availability from the repository root:
+
+```bash
+curl --cacert frontend/app/src/main/res/raw/cpen321_server.pem https://35.222.61.184/health
+```
+
+Expected response: `{"status":"ok"}`. If this fails, check connectivity and the deployed backend before continuing; do not disable certificate verification.
+
+### 2. Build and install the fallback app
+
+Open the repository's `frontend` folder in Android Studio, let Gradle sync, and start the Pixel 9 API 36 Google Play emulator. Select the `app` configuration and click Run. Alternatively, from the repository root:
+
+```bash
+./scripts/run-frontend.sh
+```
+
+On Windows, use the corresponding `scripts/run-frontend.ps1` script. The debug APK is generated at `frontend/app/build/outputs/apk/debug/app-debug.apk`.
+
+If installation reports `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, the emulator already has this package signed with another key (for example, the submission release APK or another student's app). Uninstall that app using Android Settings → Apps → CPEN321 Application → Uninstall, then install again. **Uninstalling clears that app's local data and sign-in state.** Alternatively, with `adb` available on PATH and only the intended emulator connected:
+
+```bash
+adb uninstall com.example.cpen321application
+```
+
+A new debug build also needs its signing SHA-1 authorized for Google sign-in. Follow [Google sign-in when rebuilding](#google-sign-in-when-rebuilding) below: run `./gradlew signingReport` from `frontend`, then have the project owner register the debug SHA-1 and package name in the same Cloud project as the Web client ID. Arrange OAuth test-user access where applicable. Reusing the public Web client ID alone does not authorize a new signing key. Buttons 2 and 3 can be checked independently while signed out.
+
+### 3. Run a backend yourself if needed
+
+If the hosted service is unavailable and you need a replacement backend, copy `backend/.env.example` to `backend/.env` **only if it does not already exist**. Edit these settings:
+
+```dotenv
+PORT=3000
+NODE_ENV=development
+PIXEL_SOURCE_URL=wss://8.229.22.124
+FOOTBALL_DATA_API_TOKEN=<your-private-football-data.org-token>
+```
+
+Use the token supplied in the private M1 documentation, or your own football-data.org token. Replace the entire placeholder, including angle brackets. Keep this token in `backend/.env`; do not put it in `local.properties`, the APK or Git. MongoDB, JWT and the backend Google client settings from the template are unused for M1. The football token is required for real scores, not for the server-information endpoints.
+
+From the repository root:
+
+```bash
+cd backend
+npm ci
+npm run build
+npm start
+```
+
+Leave that terminal running. In a second terminal, `curl http://127.0.0.1:3000/health` should return `{"status":"ok"}`. If port 3000 is occupied, stop your other backend instance or select another `PORT` and adjust the proxy accordingly. After changing `.env`, restart Node (or the systemd service on the VM).
+
+**This local HTTP check is not yet an Android backend replacement.** The app blocks cleartext HTTP, and `localhost` inside the emulator refers to the emulator itself. Follow [HTTPS deployment](#https-deployment) below to expose trusted HTTPS, update `API_BASE_URL` in `frontend/local.properties`, update the server-IP response and Android certificate/domain trust for the new deployment, and rebuild. Merely setting `http://10.0.2.2:3000` will not work with the submitted security configuration.
+
+Finally, repeat the [manual checks](#manual-check-of-the-actual-submission-apk) for all three buttons on the newly installed build. If a failure remains, capture the exact build error or Android Studio Logcat output; distinguish an installation error, Google sign-in failure and backend connection failure.
+
 ## Fresh clone and frontend setup
 
 ```bash
